@@ -72,9 +72,7 @@ class WPORG_CheckTheme {
 
 		foreach ( $messages as $key => $val ) {
 			$implode = implode( $eol, $val );
-			echo '[ ' . esc_attr( $key ) . ' ] '. $eol . $implode;
-			echo $eol;
-			echo $eol;
+			echo '[ ' . esc_attr( $key ) . ' ] '.$implode;
 		}
 	}
 
