@@ -68,7 +68,7 @@ class WPORG_CheckTheme {
 	public function print_message( $type, $messages ) {
 		echo '::' . esc_attr( $type ) . '::';
 
-		$eol = '%0A';
+		$eol = PHP_EOL;
 
 		foreach ( $messages as $key => $val ) {
 			$implode = implode( $eol, $val );
