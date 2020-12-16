@@ -57,21 +57,21 @@ runs:
       shell: bash
 
       ## Run checks using theme-check plugin
-    - name: Run Theme Check
-      run: cd ${{ github.action_path }} && npm run check:theme-check
-      env:
-        CI: true
-      shell: bash
+    # - name: Run Theme Check
+    #   run: cd ${{ github.action_path }} && npm run check:theme-check
+    #   env:
+    #     CI: true
+    #   shell: bash
 
       ## Run checks using e2e
-    # - name: Run Basic JS Checks
-    #   run: cd ${{ github.action_path }} && npm run check:ui
-    #   env:
-    #     UI_DEBUG: ${{ inputs.ui-debug }}
-    #     TEST_ACCESSIBILITY: ${{ inputs.accessible-ready }}
-    #     WP_ENV_TESTS_PORT: 8889
-    #     THEME_TYPE: ${{ steps.pre.outputs.theme-type }}
-    #   shell: bash
+    - name: Run Basic JS Checks
+      run: cd ${{ github.action_path }} && npm run check:ui
+      env:
+        UI_DEBUG: ${{ inputs.ui-debug }}
+        TEST_ACCESSIBILITY: ${{ inputs.accessible-ready }}
+        WP_ENV_TESTS_PORT: 8889
+        THEME_TYPE: ${{ steps.pre.outputs.theme-type }}
+      shell: bash
     
 
     
