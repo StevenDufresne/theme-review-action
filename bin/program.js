@@ -104,102 +104,75 @@ const printTestHeader = ({ basePort, testPort }) => {
 	info('Testing Ports:', [basePort, testPort].join('/'));
 };
 
-const runThemeCopyAsync = async (pathToCopy) => {
-	let spinner = ora('Copying theme files into the environment...').start();
+const withProgressAsync = async (text, fn) => {
+	const spinner = ora(text).start();
+	const time = process.hrtime();
+	try {
+		const res = await fn();
 
+		printDebugInfo(res);
+
+		spinner.succeed(`${text} (${process.hrtime(time)[0]}s)`);
+
+		return res;
+	} catch (e) {
+		spinner.succeed();
+		return false;
+	}
+};
+
+const runThemeCopyAsync = async (pathToCopy) => {
 	try {
 		const destination = path.join(__dirname, `../test-theme`);
 		await fs.copy(pathToCopy, destination);
-		spinner.succeed();
 		return true;
 	} catch (e) {
 		error(e);
-		spinner.fail();
 		return false;
 	}
 };
 
 const runEnvironmentSetupAsync = async (npmPrefix, env) => {
-	let spinner = ora(
-		'Setting up the development environment for testing...'
-	).start();
-
 	try {
-		const res = await command(`${npmPrefix} install:environment `, {
+		return await command(`${npmPrefix} install:environment `, {
 			env,
 			windowHide: false,
 			timeout: +program.timeout,
 		});
-
-		printDebugInfo(res);
-
-		spinner.succeed();
-		return res;
 	} catch (e) {
 		error(e);
-		spinner.fail();
 		return false;
 	}
 };
 
 const runThemeCheckAsync = async (npmPrefix) => {
-	let spinner = ora(
-		'Running the theme through theme check plugin...'
-	).start();
 	try {
-		const res = await command(`${npmPrefix} check:theme-check`, {
+		return await command(`${npmPrefix} check:theme-check`, {
 			timeout: +program.timeout,
 		});
-
-		printDebugInfo(res);
-
-		spinner.succeed();
-		return res;
 	} catch (e) {
-		printDebugInfo(e);
-		spinner.fail();
 		return false;
 	}
 };
 
 const runUICheckAsync = async (npmPrefix, env) => {
-	let spinner = ora(
-		'Running some end to end tests on the front end...'
-	).start();
-
 	try {
-		const res = await command(`${npmPrefix} check:ui`, {
+		return await command(`${npmPrefix} check:ui`, {
 			env,
 			timeout: +program.timeout,
 		});
-
-		printDebugInfo(res);
-
-		spinner.succeed();
-		return res;
 	} catch (e) {
-		printDebugInfo(e);
-		// We succeed here because failed tests will cause an exception. But we'll show the log later.
-		spinner.succeed();
 		return false;
 	}
 };
 
 const runTearDownAsync = async (npmPrefix) => {
-	let spinner = ora('Tearing down the environment...').start();
 	try {
-		const res = await command(`${npmPrefix} wp-env destroy`, {
+		return await command(`${npmPrefix} wp-env destroy`, {
 			input: 'y',
 			timeout: +program.timeout,
 		});
-
-		printDebugInfo(res);
-
-		spinner.succeed();
-		return res;
 	} catch (e) {
-		printDebugInfo(e);
-		spinner.fail();
 		error(e);
 		return false;
 	}
@@ -283,28 +256,50 @@ async function run() {
 	info('\nSteps:');
 
 	if (!program.skipFolderCopy) {
-		await runThemeCopyAsync(program.pathToTheme);
+		await withProgressAsync(
+			'Copying theme files into the environment...',
+			async () => {
+				return await runThemeCopyAsync(program.pathToTheme);
+			}
+		);
 	}
 
-	let hasWorkingEnvironment = await runEnvironmentSetupAsync(npmPrefix, {
-		WP_ENV_PORT: basePort,
-		WP_ENV_TESTS_PORT: testPort,
-		CI: program.githubRun
-	});
+	let hasWorkingEnvironment = await withProgressAsync(
+		'Setting up the development environment for testing...',
+		async () => {
+			return await runEnvironmentSetupAsync(npmPrefix, {
+				WP_ENV_PORT: basePort,
+				WP_ENV_TESTS_PORT: testPort,
+				CI: program.githubRun,
+			});
+		}
+	);
 
 	// Only try tests if the environment succeeded
 	if (hasWorkingEnvironment) {
-		await runThemeCheckAsync(npmPrefix);
+		await withProgressAsync(
+			'Running the theme through theme check plugin...',
+			async () => {
+				return await runThemeCheckAsync(npmPrefix);
+			}
+		);
 
-		await runUICheckAsync(npmPrefix, {
-			TEST_ACCESSIBILITY: program.accessibleReady,
-			WP_ENV_TESTS_PORT: testPort,
-			WP_THEME_TYPE: getThemeType(),
-			CI: program.githubRun,
-		});
+		await withProgressAsync(
+			'Running some end to end tests on the front end...',
+			async () => {
+				return await runUICheckAsync(npmPrefix, {
+					TEST_ACCESSIBILITY: program.accessibleReady,
+					WP_ENV_TESTS_PORT: testPort,
+					WP_THEME_TYPE: getThemeType(),
+					CI: program.githubRun,
+				});
+			}
+		);
 	}
 
-	await runTearDownAsync(npmPrefix);
+	await withProgressAsync('Tearing down the environment...', async () => {
+		return await runTearDownAsync(npmPrefix);
+	});
 
 	if (hasWorkingEnvironment) {
 		printTestResults();
